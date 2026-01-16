@@ -9,7 +9,7 @@ export default function AdminPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === 'admin1234') {
+    if (password === process.env.NEXT_PUBLIC_ADMIN_PASSWORD) {
       setIsAuthenticated(true);
     } else {
       alert('비밀번호가 틀렸습니다!');
@@ -40,7 +40,6 @@ export default function AdminPage() {
               로그인
             </button>
           </form>
-          <p className="mt-4 text-sm text-gray-500">임시 비밀번호: admin1234</p>
         </div>
       </div>
     );
