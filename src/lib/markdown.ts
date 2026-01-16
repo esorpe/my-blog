@@ -1,10 +1,16 @@
 import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
-import MarkdownIt from 'markdown-it';
 
 const postsDirectory = path.join(process.cwd(), 'src/posts');
-const md = new MarkdownIt();
+
+let md: any;
+try {
+  const MarkdownIt = require('markdown-it');
+  md = new MarkdownIt();
+} catch (e) {
+  md = null;
+}
 
 export interface Post {
   slug: string;
