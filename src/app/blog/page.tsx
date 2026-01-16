@@ -22,7 +22,7 @@ export default function BlogIndex() {
                 {post.title}
               </h2>
             </Link>
-            <p className="text-sm text-gray-500 mb-3">{post.date}</p>
+            <p className="text-sm text-gray-500 mb-3">{String(post.date)}</p>
             <p className="text-gray-700 line-clamp-3">{post.excerpt}</p>
             <Link
               href={`/blog/${post.slug}`}

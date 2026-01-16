@@ -40,12 +40,22 @@ export function getPostBySlug(slug: string): Post {
   const fileContents = fs.readFileSync(fullPath, 'utf8');
   const { data, content } = matter(fileContents);
 
+  // Ensure date is a string
+  let dateStr = data.date || new Date().toISOString().split('T')[0];
+  if (dateStr instanceof Date) {
+    dateStr = dateStr.toISOString().split('T')[0];
+  } else {
+    dateStr = String(dateStr);
+  }
+
+  const renderedContent = md ? md.render(content) : `<p>${content}</p>`;
+
   return {
     slug: realSlug,
     title: data.title || 'Untitled',
-    date: data.date || new Date().toISOString().split('T')[0],
+    date: dateStr,
     excerpt: data.excerpt || '',
-    content: md.render(content),
+    content: renderedContent,
     ...data,
   };
 }
