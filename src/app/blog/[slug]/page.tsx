@@ -1,17 +1,25 @@
-import { getPostBySlug, getSlugs } from '@/lib/markdown';
+import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-export function generateStaticParams() {
-  const slugs = getSlugs();
-  return slugs.map((slug) => ({ slug }));
+export const revalidate = 0; // Disable caching
+
+export async function generateStaticParams() {
+  const { data: posts } = await supabase
+    .from('posts')
+    .select('slug');
+  
+  return posts ? posts.map((post) => ({ slug: post.slug })) : [];
 }
 
-export default function BlogPost({ params }: { params: { slug: string } }) {
-  let post;
-  try {
-    post = getPostBySlug(params.slug);
-  } catch {
+export default async function BlogPost({ params }: { params: { slug: string } }) {
+  const { data: post } = await supabase
+    .from('posts')
+    .select('*')
+    .eq('slug', params.slug)
+    .single();
+
+  if (!post) {
     notFound();
   }
 
@@ -26,10 +34,9 @@ export default function BlogPost({ params }: { params: { slug: string } }) {
         <p className="text-gray-600">{post.date}</p>
       </header>
 
-      <div
-        className="prose max-w-none"
-        dangerouslySetInnerHTML={{ __html: post.content }}
-      />
+      <div className="prose max-w-none whitespace-pre-wrap">
+        {post.content}
+      </div>
     </article>
   );
 }
