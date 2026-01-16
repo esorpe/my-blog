@@ -2,15 +2,8 @@ import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-export const revalidate = 0; // Disable caching
-
-export async function generateStaticParams() {
-  const { data: posts } = await supabase
-    .from('posts')
-    .select('slug');
-  
-  return posts ? posts.map((post) => ({ slug: post.slug })) : [];
-}
+export const revalidate = 0; // Always fetch fresh
+export const dynamic = 'force-dynamic'; // Avoid stale static params
 
 export default async function BlogPost({ params }: { params: { slug: string } }) {
   const { data: post } = await supabase
