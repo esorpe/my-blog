@@ -4,14 +4,6 @@ import matter from 'gray-matter';
 
 const postsDirectory = path.join(process.cwd(), 'src/posts');
 
-let md: any;
-try {
-  const MarkdownIt = require('markdown-it');
-  md = new MarkdownIt();
-} catch (e) {
-  md = null;
-}
-
 export interface Post {
   slug: string;
   title: string;
@@ -21,48 +13,72 @@ export interface Post {
   [key: string]: any;
 }
 
+/**
+ * Get all markdown posts from the local posts directory
+ * Note: This is a utility for static site generation. For runtime post retrieval,
+ * use Supabase directly from src/lib/supabase.ts
+ */
 export function getAllPosts(): Post[] {
-  const fileNames = fs.readdirSync(postsDirectory);
-  const posts = fileNames
-    .filter((fileName) => fileName.endsWith('.md'))
-    .map((fileName) => {
-      const slug = fileName.replace(/\.md$/, '');
-      return getPostBySlug(slug);
-    })
-    .sort((post1, post2) => new Date(post2.date).getTime() - new Date(post1.date).getTime());
+  try {
+    const fileNames = fs.readdirSync(postsDirectory);
+    const posts = fileNames
+      .filter((fileName) => fileName.endsWith('.md'))
+      .map((fileName) => {
+        const slug = fileName.replace(/\.md$/, '');
+        return getPostBySlug(slug);
+      })
+      .sort((post1, post2) => new Date(post2.date).getTime() - new Date(post1.date).getTime());
 
-  return posts;
+    return posts;
+  } catch (error) {
+    console.error('Error reading posts directory:', error);
+    return [];
+  }
 }
 
 export function getPostBySlug(slug: string): Post {
-  const realSlug = slug.replace(/\.md$/, '');
-  const fullPath = path.join(postsDirectory, `${realSlug}.md`);
-  const fileContents = fs.readFileSync(fullPath, 'utf8');
-  const { data, content } = matter(fileContents);
+  try {
+    const realSlug = slug.replace(/\.md$/, '');
+    const fullPath = path.join(postsDirectory, `${realSlug}.md`);
+    
+    if (!fs.existsSync(fullPath)) {
+      throw new Error(`Post file not found: ${fullPath}`);
+    }
+    
+    const fileContents = fs.readFileSync(fullPath, 'utf8');
+    const { data, content } = matter(fileContents);
 
-  // Ensure date is a string
-  let dateStr = data.date || new Date().toISOString().split('T')[0];
-  if (dateStr instanceof Date) {
-    dateStr = dateStr.toISOString().split('T')[0];
-  } else {
-    dateStr = String(dateStr);
+    // Ensure date is a string
+    let dateStr = data.date || new Date().toISOString().split('T')[0];
+    if (dateStr instanceof Date) {
+      dateStr = dateStr.toISOString().split('T')[0];
+    } else {
+      dateStr = String(dateStr);
+    }
+
+    return {
+      slug: realSlug,
+      title: data.title || 'Untitled',
+      date: dateStr,
+      excerpt: data.excerpt || '',
+      content: content,
+      ...data,
+    };
+  } catch (error) {
+    console.error(`Error reading post ${slug}:`, error);
+    throw error;
   }
-
-  const renderedContent = md ? md.render(content) : `<p>${content}</p>`;
-
-  return {
-    slug: realSlug,
-    title: data.title || 'Untitled',
-    date: dateStr,
-    excerpt: data.excerpt || '',
-    content: renderedContent,
-    ...data,
-  };
 }
 
 export function getSlugs(): string[] {
-  const fileNames = fs.readdirSync(postsDirectory);
-  return fileNames
-    .filter((fileName) => fileName.endsWith('.md'))
-    .map((fileName) => fileName.replace(/\.md$/, ''));
+  try {
+    const fileNames = fs.readdirSync(postsDirectory);
+    return fileNames
+      .filter((fileName) => fileName.endsWith('.md'))
+      .map((fileName) => fileName.replace(/\.md$/, ''));
+  } catch (error) {
+    console.error('Error reading slugs:', error);
+    return [];
+  }
 }
+

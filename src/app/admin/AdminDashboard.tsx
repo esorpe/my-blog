@@ -17,6 +17,8 @@ export default function AdminDashboard() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     slug: '',
@@ -30,64 +32,80 @@ export default function AdminDashboard() {
   }, []);
 
   async function fetchPosts() {
-    const { data, error } = await supabase
-      .from('posts')
-      .select('*')
-      .order('date', { ascending: false });
-    
-    if (error) {
-      console.error('Error fetching posts:', error);
-    } else {
+    try {
+      const { data, error } = await supabase
+        .from('posts')
+        .select('*')
+        .order('date', { ascending: false });
+      
+      if (error) {
+        throw error;
+      }
       setPosts(data || []);
+    } catch (error) {
+      const err = error as Error;
+      setMessage({ type: 'error', text: `글 로딩 실패: ${err.message}` });
+      console.error('Error fetching posts:', error);
     }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setLoading(true);
+    setMessage(null);
     
-    if (editingPost) {
-      // Update existing post
-      const { error } = await supabase
-        .from('posts')
-        .update(formData)
-        .eq('id', editingPost.id);
-      
-      if (error) {
-        alert('Error updating post: ' + error.message);
+    try {
+      if (editingPost) {
+        // Update existing post
+        const { error } = await supabase
+          .from('posts')
+          .update(formData)
+          .eq('id', editingPost.id);
+        
+        if (error) throw error;
+        setMessage({ type: 'success', text: '글이 수정되었습니다!' });
       } else {
-        alert('Post updated successfully!');
-        resetForm();
-        fetchPosts();
+        // Create new post
+        const { error } = await supabase
+          .from('posts')
+          .insert([formData]);
+        
+        if (error) throw error;
+        setMessage({ type: 'success', text: '글이 작성되었습니다!' });
       }
-    } else {
-      // Create new post
-      const { error } = await supabase
-        .from('posts')
-        .insert([formData]);
       
-      if (error) {
-        alert('Error creating post: ' + error.message);
-      } else {
-        alert('Post created successfully!');
-        resetForm();
-        fetchPosts();
-      }
+      resetForm();
+      await fetchPosts();
+    } catch (error) {
+      const err = error as Error;
+      setMessage({ type: 'error', text: `오류: ${err.message}` });
+      console.error('Error saving post:', error);
+    } finally {
+      setLoading(false);
     }
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Are you sure you want to delete this post?')) return;
+    if (!confirm('정말 이 글을 삭제하시겠습니까?')) return;
     
-    const { error } = await supabase
-      .from('posts')
-      .delete()
-      .eq('id', id);
+    setLoading(true);
+    setMessage(null);
     
-    if (error) {
-      alert('Error deleting post: ' + error.message);
-    } else {
-      alert('Post deleted successfully!');
-      fetchPosts();
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      setMessage({ type: 'success', text: '글이 삭제되었습니다!' });
+      await fetchPosts();
+    } catch (error) {
+      const err = error as Error;
+      setMessage({ type: 'error', text: `삭제 실패: ${err.message}` });
+      console.error('Error deleting post:', error);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -101,6 +119,7 @@ export default function AdminDashboard() {
       content: post.content,
     });
     setIsEditing(true);
+    setMessage(null);
   }
 
   function resetForm() {
@@ -124,6 +143,12 @@ export default function AdminDashboard() {
         </Link>
       </div>
 
+      {message && (
+        <div className={`mb-8 p-4 rounded ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+          {message.text}
+        </div>
+      )}
+
       {/* Form */}
       <div className="bg-white p-6 rounded-lg shadow-md mb-8">
         <h2 className="text-2xl font-bold mb-4">
@@ -138,6 +163,7 @@ export default function AdminDashboard() {
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               className="w-full border rounded px-3 py-2"
               required
+              disabled={loading}
             />
           </div>
           
@@ -150,6 +176,7 @@ export default function AdminDashboard() {
               className="w-full border rounded px-3 py-2"
               placeholder="my-first-post"
               required
+              disabled={loading}
             />
           </div>
           
@@ -161,6 +188,7 @@ export default function AdminDashboard() {
               onChange={(e) => setFormData({ ...formData, date: e.target.value })}
               className="w-full border rounded px-3 py-2"
               required
+              disabled={loading}
             />
           </div>
           
@@ -172,31 +200,36 @@ export default function AdminDashboard() {
               onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })}
               className="w-full border rounded px-3 py-2"
               placeholder="글의 짧은 요약"
+              disabled={loading}
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium mb-1">내용</label>
+            <label className="block text-sm font-medium mb-1">내용 (Markdown)</label>
             <textarea
               value={formData.content}
               onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-              className="w-full border rounded px-3 py-2 h-64"
+              className="w-full border rounded px-3 py-2 h-64 font-mono text-sm"
+              placeholder="# 제목&#10;&#10;마크다운 형식으로 작성하세요..."
               required
+              disabled={loading}
             />
           </div>
           
           <div className="flex gap-2">
             <button
               type="submit"
-              className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
+              className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+              disabled={loading}
             >
-              {editingPost ? '수정하기' : '작성하기'}
+              {loading ? '처리 중...' : (editingPost ? '수정하기' : '작성하기')}
             </button>
             {editingPost && (
               <button
                 type="button"
                 onClick={resetForm}
-                className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600"
+                className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600 disabled:opacity-50"
+                disabled={loading}
               >
                 취소
               </button>
@@ -207,7 +240,7 @@ export default function AdminDashboard() {
 
       {/* Posts List */}
       <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold mb-4">글 목록</h2>
+        <h2 className="text-2xl font-bold mb-4">글 목록 ({posts.length})</h2>
         <div className="space-y-4">
           {posts.map((post) => (
             <div key={post.id} className="border-b pb-4 last:border-b-0">
@@ -215,18 +248,20 @@ export default function AdminDashboard() {
                 <div className="flex-1">
                   <h3 className="text-xl font-bold">{post.title}</h3>
                   <p className="text-sm text-gray-500">{post.date} · /blog/{post.slug}</p>
-                  <p className="text-gray-700 mt-2">{post.excerpt}</p>
+                  <p className="text-gray-700 mt-2 line-clamp-2">{post.excerpt}</p>
                 </div>
-                <div className="flex gap-2 ml-4">
+                <div className="flex gap-2 ml-4 flex-shrink-0">
                   <button
                     onClick={() => handleEdit(post)}
-                    className="bg-yellow-500 text-white px-4 py-1 rounded hover:bg-yellow-600 text-sm"
+                    className="bg-yellow-500 text-white px-4 py-1 rounded hover:bg-yellow-600 text-sm disabled:opacity-50"
+                    disabled={loading}
                   >
                     수정
                   </button>
                   <button
                     onClick={() => handleDelete(post.id)}
-                    className="bg-red-500 text-white px-4 py-1 rounded hover:bg-red-600 text-sm"
+                    className="bg-red-500 text-white px-4 py-1 rounded hover:bg-red-600 text-sm disabled:opacity-50"
+                    disabled={loading}
                   >
                     삭제
                   </button>

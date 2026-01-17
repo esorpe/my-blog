@@ -1,13 +1,19 @@
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 
-export const revalidate = 0; // Disable caching for this page
+export const revalidate = 3600; // Revalidate every hour (ISR)
 
 export default async function BlogIndex() {
-  const { data: posts } = await supabase
+  const { data: posts, error } = await supabase
     .from('posts')
     .select('*')
     .order('date', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching posts:', error);
+  }
+
+  const postList = posts || [];
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-16">
@@ -22,8 +28,8 @@ export default async function BlogIndex() {
       </div>
 
       <div className="grid gap-8">
-        {posts && posts.length > 0 ? (
-          posts.map((post) => (
+        {postList.length > 0 ? (
+          postList.map((post) => (
             <article
               key={post.id}
               className="border-b pb-8 hover:bg-gray-50 -mx-4 px-4 py-4 rounded transition"

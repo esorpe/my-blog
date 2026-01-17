@@ -1,33 +1,155 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# My Blog
+
+A modern blog application built with Next.js 16, React 19, TypeScript, and Supabase.
+
+## Features
+
+- 📝 **Markdown Support** - Write posts in Markdown with automatic HTML rendering
+- 🔐 **Supabase Authentication** - Secure admin login with email/password
+- ⚡ **ISR Caching** - Incremental Static Regeneration for optimal performance
+- 🎨 **Tailwind CSS** - Beautiful, responsive UI
+- 📱 **Mobile Friendly** - Works great on all devices
+- 🚀 **Server Components** - Built with Next.js App Router
+- 🛡️ **XSS Protection** - Sanitized HTML output
+
+## Tech Stack
+
+- **Framework**: Next.js 16.1.2
+- **UI Library**: React 19.2.3
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS 4
+- **Database**: Supabase (PostgreSQL)
+- **Markdown**: Remark + Remark HTML
+- **Security**: DOMPurify
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18+
+- npm or yarn
+- Supabase account (https://supabase.com)
+
+### Installation
+
+1. Clone the repository and install dependencies:
+
+```bash
+npm install
+```
+
+2. Set up environment variables in `.env.local`:
+
+```env
+SUPABASE_URL=your_supabase_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+3. Set up your Supabase database with the `posts` table:
+
+```sql
+create table posts (
+  id uuid default gen_random_uuid() primary key,
+  title text not null,
+  slug text unique not null,
+  date date not null,
+  excerpt text,
+  content text not null,
+  created_at timestamp default now(),
+  updated_at timestamp default now()
+);
+```
+
+4. Create an admin user in Supabase Auth
+
+### Development
+
+Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Production
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Build for production:
 
-## Learn More
+```bash
+npm run build
+npm start
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Architecture
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+src/
+├── app/
+│   ├── blog/
+│   │   ├── page.tsx           # Blog index with ISR
+│   │   ├── [slug]/
+│   │   │   └── page.tsx       # Individual post with markdown rendering
+│   │   ├── loading.tsx        # Blog loading skeleton
+│   │   └── error.tsx          # Error boundary
+│   ├── admin/
+│   │   ├── page.tsx           # Admin login (Supabase Auth)
+│   │   └── AdminDashboard.tsx # Post editor with CRUD operations
+│   ├── layout.tsx             # Root layout
+│   ├── page.tsx               # Home redirect
+│   ├── not-found.tsx          # 404 page
+│   └── error.tsx              # Global error boundary
+├── lib/
+│   ├── supabase.ts            # Supabase client
+│   ├── markdown.ts            # Markdown utilities (for SSG)
+│   └── markdownRenderer.ts    # Server-side markdown to HTML rendering
+└── posts/
+    ├── welcome.md             # Sample posts (optional)
+    └── blog.md
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Key Improvements Made
+
+✅ **Markdown to HTML Rendering** - Uses Remark for proper markdown parsing with sanitization
+✅ **Supabase Authentication** - Replaced password auth with proper email/password authentication
+✅ **ISR Caching** - Changed from `revalidate: 0` to `revalidate: 3600` for better performance
+✅ **Type Safety** - Removed `any` types and added proper error handling
+✅ **Loading States** - Added skeleton loading components for better UX
+✅ **Error Pages** - Custom 404 and error boundary pages
+✅ **Better Feedback** - Admin dashboard shows success/error messages
+✅ **Proper Dependencies** - Replaced markdown-it with remark for better flexibility
+
+## Admin Dashboard
+
+Access the admin dashboard at `/admin`:
+
+- Create, edit, and delete blog posts
+- Write posts in Markdown format
+- Authentication required (Supabase Auth)
+- Real-time feedback on operations
+
+## Environment Setup
+
+Make sure your `.env.local` has:
+
+```
+# Supabase
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your_anon_key
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+```
+
+The public variables are needed for client-side auth, while the non-public ones are for server-side operations.
+
+## Browser Support
+
+- Chrome/Edge 90+
+- Firefox 88+
+- Safari 14+
+- Mobile browsers (iOS Safari, Chrome Mobile)
 
 ## Deploy on Vercel
 

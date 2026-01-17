@@ -1,20 +1,38 @@
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { renderMarkdown } from '@/lib/markdownRenderer';
 
-export const revalidate = 0; // Always fetch fresh
-export const dynamic = 'force-dynamic'; // Avoid stale static params
+export const revalidate = 3600; // Revalidate every hour (ISR)
+
+export async function generateStaticParams() {
+  const { data: posts, error } = await supabase
+    .from('posts')
+    .select('slug');
+
+  if (error || !posts) {
+    console.error('Error fetching posts for static params:', error);
+    return [];
+  }
+
+  return posts.map((post) => ({
+    slug: post.slug,
+  }));
+}
 
 export default async function BlogPost({ params }: { params: { slug: string } }) {
-  const { data: post } = await supabase
+  const { data: post, error } = await supabase
     .from('posts')
     .select('*')
     .eq('slug', params.slug)
     .single();
 
-  if (!post) {
+  if (error || !post) {
     notFound();
   }
+
+  // Render markdown to HTML
+  const htmlContent = await renderMarkdown(post.content);
 
   return (
     <article className="max-w-2xl mx-auto px-4 py-16">
@@ -27,9 +45,7 @@ export default async function BlogPost({ params }: { params: { slug: string } })
         <p className="text-gray-600">{post.date}</p>
       </header>
 
-      <div className="prose max-w-none whitespace-pre-wrap">
-        {post.content}
-      </div>
+      <div className="prose prose-sm md:prose-base max-w-none" dangerouslySetInnerHTML={{ __html: htmlContent }} />
     </article>
   );
 }
